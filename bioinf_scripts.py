@@ -1,57 +1,34 @@
-# bioinf_scripts.py
 import os
-from helpers.fastq import (
-    read_fastq,
-    write_fastq,
-    check_gc_bounds,
-    check_length_bounds,
-    check_quality_threshold
-)
+from helpers.bio_files import read_fasta, write_fasta
 
 
-def filter_fastq(input_fastq, output_fastq, gc_bounds=(0, 100), 
-                 length_bounds=(0, 2**32), quality_threshold=0):
+def convert_multiline_fasta_to_oneline(
+    input_fasta: str,
+    output_fasta: str | None = None
+) -> str:
     """
-    Фильтрует FASTQ файл по заданным критериям.
-    
-    Args:
-        input_fastq: путь до входного FASTQ файла
-        output_fastq: имя выходного файла (сохраняется в папку filtered/)
-        gc_bounds: интервал GC состава (по умолчанию (0, 100))
-        length_bounds: интервал длины (по умолчанию (0, 2**32))
-        quality_threshold: порог среднего качества (по умолчанию 0)
+    Конвертирует multiline FASTA файл в oneline формат.
+    Каждая последовательность умещается в одну строку.
+
+    Arguments:
+        input_fasta: путь до входного FASTA файла
+        output_fasta: путь до выходного файла. Если не указан,
+                      создаётся файл с суффиксом '_oneline' в той же папке.
+
+    Returns:
+        str: путь до созданного выходного файла
     """
-    # Создаем папку filtered/, если её нет
-    output_dir = "filtered"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
     
-    # Полный путь к выходному файлу
-    output_path = os.path.join(output_dir, output_fastq)
-    
-    # Очищаем выходной файл, если он существует
-    if os.path.exists(output_path):
-        os.remove(output_path)
-    
-    # Читаем и фильтруем "на лету"
-    for header, sequence, quality in read_fastq(input_fastq):
-        # Проверяем все критерии
-        passes_gc = check_gc_bounds(sequence, gc_bounds)
-        passes_length = check_length_bounds(sequence, length_bounds)
-        passes_quality = check_quality_threshold(quality, quality_threshold)
-        
-        # Если рид проходит все фильтры - записываем его
-        if passes_gc and passes_length and passes_quality:
-            write_fastq(output_path, header, sequence, quality)
+    if output_fasta is None:
+        base, ext = os.path.splitext(input_fasta)
+        output_fasta = f"{base}_oneline{ext}"
 
+   
+    if os.path.exists(output_fasta):
+        os.remove(output_fasta)
 
-# Пример использования
-if __name__ == "__main__":
-    # Пример вызова функции
-    filter_fastq(
-        input_fastq="example.fastq",
-        output_fastq="filtered_output.fastq",
-        gc_bounds=(20, 80),
-        length_bounds=(50, 300),
-        quality_threshold=20
-    )
+   
+    for header, sequence in read_fasta(input_fasta):
+        write_fasta(output_fasta, header, sequence)
+
+    return output_fasta
